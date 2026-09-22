@@ -1,0 +1,74 @@
+<!doctype html><html lang="zh-Hant"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d12"><title>牌靴機率模擬器</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b0d12;color:#f4f6fa;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif}
+main{max-width:760px;margin:auto;padding:calc(18px + env(safe-area-inset-top)) 14px 35px}h1{font-size:27px;margin:5px 0}.muted{color:#929aaa;font-size:12px;line-height:1.5}
+.card{background:#161a23;border:1px solid #282e3a;border-radius:18px;padding:15px;margin:12px 0}.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}
+button{border:0;border-radius:12px;padding:13px 5px;font-size:16px;font-weight:800;background:#29303d;color:white}button:active{opacity:.7}.danger{background:#51252b}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{text-align:center}.stat b{font-size:23px;display:block;margin:5px}
+.bar{height:10px;background:#262c37;border-radius:8px;overflow:hidden;margin-top:6px}.fill{height:100%;background:#7e8798}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:7px 3px;border-bottom:1px solid #282e3a;text-align:center}
+#log{word-break:break-all;line-height:1.8}.primary{width:100%;background:#365f9f;padding:15px}.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+</style></head><body><main>
+<h1>牌靴機率模擬器</h1>
+<div class="muted">8 副牌教學模型。輸入已出現牌值後，查看剩餘牌組成與隨機模擬分布；不提供下注建議。</div>
+
+<section class="card"><b>輸入已出現的牌</b>
+<div class="grid" id="keys" style="margin-top:12px"></div>
+<div id="log" class="muted" style="margin-top:12px">尚未輸入</div>
+<div class="row" style="margin-top:10px"><button onclick="undo()">復原一張</button><button class="danger" onclick="resetShoe()">重設牌靴</button></div>
+</section>
+
+<section class="card"><b>牌靴狀態</b>
+<div style="margin-top:10px">剩餘 <strong id="remain">416</strong> / 416 張　<span id="remainPct" class="muted">100%</span></div>
+<div class="bar"><div id="shoeBar" class="fill" style="width:100%"></div></div>
+<table style="margin-top:10px"><thead><tr><th>牌值</th><th>剩餘</th><th>比例</th></tr></thead><tbody id="table"></tbody></table>
+</section>
+
+<section class="card"><b>剩餘牌靴隨機模擬</b>
+<p class="muted">每次從目前剩餘牌靴隨機模擬 10,000 局，依一般百家樂補牌規則結算。</p>
+<button class="primary" onclick="runSim()">執行 10,000 局模擬</button>
+<div class="stats" style="margin-top:12px">
+<div class="stat">莊<b id="banker">—</b><span class="muted" id="bankerN"></span></div>
+<div class="stat">閒<b id="player">—</b><span class="muted" id="playerN"></span></div>
+<div class="stat">和<b id="tie">—</b><span class="muted" id="tieN"></span></div>
+</div>
+<p class="muted">模擬百分比會因隨機抽樣而波動，不代表實際下一局結果。</p>
+</section></main>
+<script>
+const vals=['A','2','3','4','5','6','7','8','9','10/J/Q/K'];
+let seen=JSON.parse(localStorage.getItem('shoeSeen')||'[]');
+document.getElementById('keys').innerHTML=vals.map((v,i)=>`<button onclick="add(${i})">${v}</button>`).join('');
+function initial(){return vals.map((_,i)=>i===9?128:32)}
+function counts(){let c=initial();seen.forEach(i=>c[i]--);return c}
+function save(){localStorage.setItem('shoeSeen',JSON.stringify(seen));render()}
+function add(i){let c=counts();if(c[i]>0){seen.push(i);save()}}
+function undo(){seen.pop();save()} function resetShoe(){if(confirm('重設全部已出牌紀錄？')){seen=[];save()}}
+function render(){
+ let c=counts(),r=c.reduce((a,b)=>a+b,0);remain.textContent=r;let p=(r/416*100).toFixed(1);remainPct.textContent=p+'%';shoeBar.style.width=p+'%';
+ table.innerHTML=vals.map((v,i)=>`<tr><td>${v}</td><td>${c[i]}</td><td>${r?(c[i]/r*100).toFixed(1):0}%</td></tr>`).join('');
+ log.textContent=seen.length?'已輸入 '+seen.length+' 張：'+seen.slice(-40).map(i=>vals[i]).join('、'):'尚未輸入';
+}
+function draw(deck){let total=deck.reduce((a,b)=>a+b,0),r=Math.floor(Math.random()*total);for(let i=0;i<deck.length;i++){if(r<deck[i]){deck[i]--;return i===9?0:i+1}r-=deck[i]}}
+function simOne(base){
+ let d=base.slice(),p=[draw(d),draw(d)],b=[draw(d),draw(d)];
+ let pt=(p[0]+p[1])%10,bt=(b[0]+b[1])%10;
+ if(pt>=8||bt>=8)return pt>bt?1:bt>pt?0:2;
+ let third=null;
+ if(pt<=5){third=draw(d);p.push(third);pt=(pt+third)%10}
+ if(third===null){if(bt<=5){let x=draw(d);bt=(bt+x)%10}}
+ else{
+  let hit=bt<=2||(bt===3&&third!==8)||(bt===4&&third>=2&&third<=7)||(bt===5&&third>=4&&third<=7)||(bt===6&&third>=6&&third<=7);
+  if(hit){let x=draw(d);bt=(bt+x)%10}
+ }
+ return pt>bt?1:bt>pt?0:2
+}
+function runSim(){
+ let base=counts(),total=base.reduce((a,b)=>a+b,0);if(total<6){alert('剩餘牌不足以模擬');return}
+ let n=10000,res=[0,0,0];for(let i=0;i<n;i++)res[simOne(base)]++;
+ banker.textContent=(res[0]/n*100).toFixed(2)+'%';player.textContent=(res[1]/n*100).toFixed(2)+'%';tie.textContent=(res[2]/n*100).toFixed(2)+'%';
+ bankerN.textContent=res[0]+' 局';playerN.textContent=res[1]+' 局';tieN.textContent=res[2]+' 局';
+}
+render();
+</script></body></html>
