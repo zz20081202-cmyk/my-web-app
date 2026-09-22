@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d12">
+<title>百家樂走勢分析</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Noto Sans TC",sans-serif;color-scheme:dark}
+*{box-sizing:border-box} body{margin:0;background:#0b0d12;color:#f5f7fb;min-height:100vh}
+.wrap{max-width:720px;margin:auto;padding:calc(18px + env(safe-area-inset-top)) 16px calc(30px + env(safe-area-inset-bottom))}
+h1{font-size:28px;margin:8px 0 4px}.sub{color:#8e98aa;font-size:13px;margin-bottom:18px}
+.card{background:#151923;border:1px solid #242a38;border-radius:20px;padding:16px;margin:12px 0}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat{text-align:center}.stat b{display:block;font-size:25px;margin:5px}.muted{color:#8e98aa;font-size:12px}
+.buttons{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}
+button{border:0;border-radius:16px;padding:18px 8px;font-size:20px;font-weight:800;color:white;touch-action:manipulation}
+.banker{background:#b83232}.player{background:#2766c7}.tie{background:#23835b}
+.secondary{background:#232936;font-size:15px;padding:13px}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.history{display:grid;grid-template-columns:repeat(8,1fr);gap:7px}
+.dot{aspect-ratio:1;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:12px}
+.dot.b{background:#4b1c20;border:1px solid #d54b50}.dot.p{background:#173a70;border:1px solid #4f8fe8}.dot.t{background:#174c39;border:1px solid #40a77c}
+.empty{color:#8e98aa;padding:12px 0}.title{font-weight:800;margin-bottom:12px}
+.notice{font-size:12px;color:#8e98aa;line-height:1.55}
+</style>
+</head>
+<body>
+<main class="wrap">
+<h1>百家樂走勢分析</h1>
+<div class="sub">純娛樂歷史統計工具</div>
+
+<section class="stats">
+ <div class="card stat"><span>莊</span><b id="bc">0</b><span class="muted" id="bp">0%</span></div>
+ <div class="card stat"><span>閒</span><b id="pc">0</b><span class="muted" id="pp">0%</span></div>
+ <div class="card stat"><span>和</span><b id="tc">0</b><span class="muted" id="tp">0%</span></div>
+</section>
+
+<section class="buttons">
+<button class="banker" onclick="add('莊')">莊</button>
+<button class="player" onclick="add('閒')">閒</button>
+<button class="tie" onclick="add('和')">和</button>
+</section>
+
+<section class="card">
+<div class="title">近期結果 <span class="muted" id="total"></span></div>
+<div id="history" class="history"></div>
+<div id="empty" class="empty">尚無紀錄</div>
+</section>
+
+<div class="actions">
+<button class="secondary" onclick="undo()">復原上一局</button>
+<button class="secondary" onclick="clearAll()">清除全部</button>
+</div>
+
+<section class="card">
+<div class="title">最近 10 局</div>
+<div id="summary" class="muted">尚無資料</div>
+</section>
+
+<p class="notice">歷史結果無法可靠預測下一局。本工具不包含เงินจริง下注、儲值或出金功能。</p>
+</main>
+<script>
+let data=JSON.parse(localStorage.getItem('baccaratHistory')||'[]');
+function save(){localStorage.setItem('baccaratHistory',JSON.stringify(data));render()}
+function add(x){data.push(x);save()}
+function undo(){data.pop();save()}
+function clearAll(){if(data.length&&confirm('確定清除全部紀錄？')){data=[];save()}}
+function pct(n){return data.length?(n/data.length*100).toFixed(1)+'%':'0%'}
+function render(){
+ let b=data.filter(x=>x==='莊').length,p=data.filter(x=>x==='閒').length,t=data.filter(x=>x==='和').length;
+ bc.textContent=b;pc.textContent=p;tc.textContent=t;bp.textContent=pct(b);pp.textContent=pct(p);tp.textContent=pct(t);
+ total.textContent='共 '+data.length+' 局';
+ empty.style.display=data.length?'none':'block';
+ history.innerHTML=data.slice(-40).map(x=>`<div class="dot ${x==='莊'?'b':x==='閒'?'p':'t'}">${x}</div>`).join('');
+ let r=data.slice(-10),rb=r.filter(x=>x==='莊').length,rp=r.filter(x=>x==='閒').length,rt=r.filter(x=>x==='和').length;
+ summary.textContent=r.length?`莊 ${rb}｜閒 ${rp}｜和 ${rt}`:'尚無資料';
+}
+render();
+</script>
+</body></html>
